@@ -11,4 +11,3 @@ plugins {
 }
 
 rootProject.name = 'study-kafka-consumer-app'
-include('app')
