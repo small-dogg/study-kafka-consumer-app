@@ -5,6 +5,7 @@ import com.smalldogg.model.in.ImpressionEvent;
 import com.smalldogg.model.out.ImpressionAggResult;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.*;
 import org.springframework.context.annotation.Bean;
@@ -22,27 +23,62 @@ public class ImpressionStreamTopology {
 
         KStream<String, ImpressionEvent> source = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), impressionEventSerde));
 
+        TimeWindows windows = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(5));
+
         KStream<String, ImpressionEvent> filter = source.filter(
-                ((key, event) -> event != null && event.getAmount() > 150)
-        );
+                        ((key, event) -> event != null && event.getAmount() > 150))
+                .peek((k, v) -> System.out.println("Filtered::" + v.getUserId()));
+
 
         KStream<String, ImpressionEvent> keyedByUserId = filter.selectKey((key, event) -> event.getUserId());
-
-        TimeWindows windows = TimeWindows.ofSizeWithNoGrace(Duration.ofMinutes(5));
-
-        KTable<Windowed<String>, Long> counts = keyedByUserId
-                .groupByKey(Grouped.with(Serdes.String(), impressionEventSerde))
+        KTable<Windowed<String>, Long> amountByUserId = keyedByUserId
+                .mapValues(ImpressionEvent::getAmount)
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Long()))
                 .windowedBy(windows)
-                .count(Materialized.as("impression-counts-5m"));
+                .reduce(Long::sum);
+        KStream<String, ImpressionAggResult> resultStreamByUserId =
+                amountByUserId
+                        .toStream()
+                        .map((windowedKey, amount) -> {
+                            String userId = windowedKey.key();
+                            long start = windowedKey.window().start();
+                            long end = windowedKey.window().end();
 
-        System.out.println();
-//        counts
-//                .toStream()
-//                .map((windowedKey, count) -> {
-//                    String userId = windowedKey.key();
-//                    long start = windowedKey.window().start();
-//                    long end = windowedKey.window().end();
-//                });
+                            System.out.println(
+                                    "[AGG] userId=" + userId + ", start=" + start + ", end=" + end + ", amount=" + amount
+                            );
+
+                            ImpressionAggResult result = new ImpressionAggResult(
+                                    userId, amount, start, end
+                            );
+                            return KeyValue.pair(userId, result);
+                        });
+
+        KStream<String, ImpressionEvent> keyedByItemId = filter.selectKey((key, event) -> event.getItemId());
+        KTable<Windowed<String>, Long> amountByItemId = keyedByItemId
+                .mapValues(ImpressionEvent::getAmount)
+                .groupByKey(Grouped.with(Serdes.String(), Serdes.Long()))
+                .windowedBy(windows)
+                .reduce(Long::sum);
+        KStream<String, ImpressionAggResult> resultStreamByItemId =
+                amountByItemId
+                        .toStream()
+                        .map((windowedKey, amount) -> {
+                            String itemId = windowedKey.key();
+                            long start = windowedKey.window().start();
+                            long end = windowedKey.window().end();
+
+                            System.out.println(
+                                    "[AGG] itemId=" + itemId + ", start=" + start + ", end=" + end + ", amount=" + amount
+                            );
+
+                            ImpressionAggResult result = new ImpressionAggResult(
+                                    itemId, amount, start, end
+                            );
+                            return KeyValue.pair(itemId, result);
+                        });
+
+
         return null;
     }
 }
