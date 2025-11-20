@@ -1,4 +1,4 @@
-package com.smalldogg.model.entity;
+package com.smalldogg.domain.log.entity;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -9,16 +9,16 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
-@Getter
 @Setter
+@Getter
 @Entity
-public class ImpressionAgg {
+public class ImpressionLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long seq;
-    private long userId;
-    private long amount;
-    private LocalDateTime start;
-    private LocalDateTime end;
-    private Boolean isUsed;
+    private Long userId;
+    private Long totalAmount;
+    private LocalDateTime startTimestamp;
+    private LocalDateTime endTimestamp;
+    private Boolean isCharged = false;
 }

@@ -15,3 +15,6 @@ spring:
         commit.interval.ms: 1000
         cache.max.bytes.buffering: 10485760
         processing.guarantee: exactly_once_v2
+  jpa:
+    hibernate:
+      ddl-auto: update

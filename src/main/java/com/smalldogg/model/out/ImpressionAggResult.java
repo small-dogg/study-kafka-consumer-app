@@ -8,8 +8,8 @@ import java.time.LocalDateTime;
 @Getter
 @AllArgsConstructor
 public class ImpressionAggResult {
-    private String userId;
+    private Long userId;
     private Long totalAmount;
-    private long startTimestamp;
-    private long endTimestamp;
+    private LocalDateTime startTimestamp;
+    private LocalDateTime endTimestamp;
 }

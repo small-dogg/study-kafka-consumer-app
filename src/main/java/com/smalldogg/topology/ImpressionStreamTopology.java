@@ -1,83 +1,73 @@
 package com.smalldogg.topology;
 
 
+import com.smalldogg.domain.log.LogService;
 import com.smalldogg.model.in.ImpressionEvent;
 import com.smalldogg.model.out.ImpressionAggResult;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
-import org.apache.kafka.streams.KeyValue;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.kstream.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import java.time.Duration;
+import java.time.ZoneId;
 
+@Slf4j
+@RequiredArgsConstructor
 @Configuration
 public class ImpressionStreamTopology {
+
+    private final LogService logService;
+
     private static final String INPUT_TOPIC = "impression-events";
     private static final String OUTPUT_TOPIC = "impression-events-agg-5m";
 
     @Bean
-    public KStream<String, ImpressionEvent> impressionKStream(StreamsBuilder builder, Serde<ImpressionEvent> impressionEventSerde, Serde<ImpressionAggResult> resultSerde) {
+    public KStream<String, ImpressionEvent> impressionKStream(StreamsBuilder builder, Serde<ImpressionEvent> impressionEventSerde, Serde<ImpressionAggResult> impressionAggResultSerde) {
 
         KStream<String, ImpressionEvent> source = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), impressionEventSerde));
 
-        TimeWindows windows = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(5));
+        // 1. userId로 key 설정
+        KStream<Long, ImpressionEvent> keyedByUserId = source
+                .selectKey((key, event) -> event.getUserId());
 
-        KStream<String, ImpressionEvent> filter = source.filter(
-                        ((key, event) -> event != null && event.getAmount() > 150))
-                .peek((k, v) -> System.out.println("Filtered::" + v.getUserId()));
+        // 2. ImpressionEvent -> ImpressionAggResult 1건짜리로 변환
+        KStream<Long, ImpressionAggResult> mapped = keyedByUserId
+                .mapValues(event -> {
 
+                    return new ImpressionAggResult(
+                            event.getUserId(),
+                            event.getAmount(),
+                            event.getTimestamp(),
+                            event.getTimestamp()
+                    );
+                });
 
-        KStream<String, ImpressionEvent> keyedByUserId = filter.selectKey((key, event) -> event.getUserId());
-        KTable<Windowed<String>, Long> amountByUserId = keyedByUserId
-                .mapValues(ImpressionEvent::getAmount)
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Long()))
+        // 윈도우 정의
+        TimeWindows windows = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(3));
+
+        // 3. userId + window 기준으로 reduce
+        KTable<Windowed<Long>, ImpressionAggResult> aggTable = mapped
+                .groupByKey(Grouped.with(Serdes.Long(), impressionAggResultSerde))
                 .windowedBy(windows)
-                .reduce(Long::sum);
-        KStream<String, ImpressionAggResult> resultStreamByUserId =
-                amountByUserId
-                        .toStream()
-                        .map((windowedKey, amount) -> {
-                            String userId = windowedKey.key();
-                            long start = windowedKey.window().start();
-                            long end = windowedKey.window().end();
+                .reduce(
+                        // agg: 지금까지 누적된 값
+                        // curr: 새로 들어온 값
+                        (agg, curr) -> new ImpressionAggResult(
+                                curr.getUserId(),
+                                agg.getTotalAmount() + curr.getTotalAmount(),
+                                agg.getStartTimestamp().isBefore(curr.getStartTimestamp())?agg.getStartTimestamp():curr.getStartTimestamp(),
+                                agg.getStartTimestamp().isAfter(curr.getStartTimestamp())?agg.getStartTimestamp():curr.getStartTimestamp()
+                        )
+                );
 
-                            System.out.println(
-                                    "[AGG] userId=" + userId + ", start=" + start + ", end=" + end + ", amount=" + amount
-                            );
-
-                            ImpressionAggResult result = new ImpressionAggResult(
-                                    userId, amount, start, end
-                            );
-                            return KeyValue.pair(userId, result);
-                        });
-
-        KStream<String, ImpressionEvent> keyedByItemId = filter.selectKey((key, event) -> event.getItemId());
-        KTable<Windowed<String>, Long> amountByItemId = keyedByItemId
-                .mapValues(ImpressionEvent::getAmount)
-                .groupByKey(Grouped.with(Serdes.String(), Serdes.Long()))
-                .windowedBy(windows)
-                .reduce(Long::sum);
-        KStream<String, ImpressionAggResult> resultStreamByItemId =
-                amountByItemId
-                        .toStream()
-                        .map((windowedKey, amount) -> {
-                            String itemId = windowedKey.key();
-                            long start = windowedKey.window().start();
-                            long end = windowedKey.window().end();
-
-                            System.out.println(
-                                    "[AGG] itemId=" + itemId + ", start=" + start + ", end=" + end + ", amount=" + amount
-                            );
-
-                            ImpressionAggResult result = new ImpressionAggResult(
-                                    itemId, amount, start, end
-                            );
-                            return KeyValue.pair(itemId, result);
-                        });
-
+        aggTable
+                .toStream()
+                .foreach((key, result) -> logService.saveLog(result));
 
         return null;
     }
