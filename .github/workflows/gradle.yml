@@ -23,7 +23,7 @@ jobs:
 
       - name: Build
         run: |
-          docker build -f study-kafka-consumer-app/Dockerfile -t jerryworld/study-kafka-consumer-app${{ github.base_ref }}:${{ github.sha }} .
+          docker build -f .dockerfile -t jerryworld/study-kafka-consumer-app${{ github.base_ref }}:${{ github.sha }} .
           docker push jerryworld/study-kafka-consumer-app${{ github.base_ref }}:${{ github.sha }}
   scan:
     needs: fetch-and-diff
