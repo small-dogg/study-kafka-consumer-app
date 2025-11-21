@@ -16,7 +16,6 @@ jobs:
 
       - name: Login to DockerHub
         uses: docker/login-action@v3
-        if: env.changes =='true'
         with:
           username: ${{ vars.DOCKERHUB_ID }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -91,7 +90,7 @@ jobs:
           MODULE=study-kafka-consumer-app
           cd apps/${MODULE}/overlay/${{ github.base_ref }}
           after_sha="${{ github.sha }}"
-          echo "this revision : ${after_sha}"
+          echo "this revision: ${after_sha}"
           sed -i "s|\(image:[[:space:]]*[^:]*:\)[^[:space:]]*$|\1${after_sha}|g" ${MODULE}-deployment-patch.yaml
           git add -A
           git commit -m "update manifest"
