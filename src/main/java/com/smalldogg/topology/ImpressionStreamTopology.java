@@ -31,12 +31,12 @@ public class ImpressionStreamTopology {
 
         KStream<String, ImpressionEvent> source = builder.stream(INPUT_TOPIC, Consumed.with(Serdes.String(), impressionEventSerde));
 
-        // 1. userId로 key 설정
-        KStream<Long, ImpressionEvent> keyedByUserId = source
-                .selectKey((key, event) -> event.getUserId());
+        // 1. uuidv7방식의 id로 key 설정
+        KStream<String, ImpressionEvent> keyedByUserId = source
+                .selectKey((key, event) -> event.getId());
 
         // 2. ImpressionEvent -> ImpressionAggResult 1건짜리로 변환
-        KStream<Long, ImpressionAggResult> mapped = keyedByUserId
+        KStream<String, ImpressionAggResult> mapped = keyedByUserId
                 .mapValues(event -> {
 
                     return new ImpressionAggResult(
@@ -51,8 +51,8 @@ public class ImpressionStreamTopology {
         TimeWindows windows = TimeWindows.ofSizeWithNoGrace(Duration.ofSeconds(3));
 
         // 3. userId + window 기준으로 reduce
-        KTable<Windowed<Long>, ImpressionAggResult> aggTable = mapped
-                .groupByKey(Grouped.with(Serdes.Long(), impressionAggResultSerde))
+        KTable<Windowed<String>, ImpressionAggResult> aggTable = mapped
+                .groupByKey(Grouped.with(Serdes.String(), impressionAggResultSerde))
                 .windowedBy(windows)
                 .reduce(
                         // agg: 지금까지 누적된 값

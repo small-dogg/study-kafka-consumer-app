@@ -8,6 +8,7 @@ import java.time.LocalDateTime;
 @Getter
 @AllArgsConstructor
 public class ImpressionEvent {
+    private String id;
     private Long pid;
     private Long userId;
     private Long amount;
