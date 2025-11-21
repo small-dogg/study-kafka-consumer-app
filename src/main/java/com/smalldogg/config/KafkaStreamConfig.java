@@ -1,11 +1,7 @@
 package com.smalldogg.config;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smalldogg.config.properties.KafkaProperties;
-import com.smalldogg.model.in.ImpressionEvent;
-import com.smalldogg.model.out.ImpressionAggResult;
 import lombok.RequiredArgsConstructor;
-import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.StreamsConfig;
 import org.springframework.context.annotation.Bean;
@@ -38,15 +34,5 @@ public class KafkaStreamConfig {
         }
 
         return new KafkaStreamsConfiguration(props);
-    }
-
-    @Bean
-    public Serde<ImpressionEvent> impressionEventSerde(ObjectMapper objectMapper) {
-        return new JsonSerde<>(ImpressionEvent.class, objectMapper);
-    }
-
-    @Bean
-    public Serde<ImpressionAggResult> impressionAggResultSerde(ObjectMapper objectMapper) {
-        return new JsonSerde<>(ImpressionAggResult.class, objectMapper);
     }
 }

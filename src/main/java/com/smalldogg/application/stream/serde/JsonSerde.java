@@ -1,4 +1,4 @@
-package com.smalldogg.config;
+package com.smalldogg.application.stream.serde;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
