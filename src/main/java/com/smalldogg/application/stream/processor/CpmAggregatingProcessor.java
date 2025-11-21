@@ -16,6 +16,8 @@ import org.apache.kafka.streams.state.StoreBuilder;
 import org.apache.kafka.streams.state.Stores;
 import org.springframework.stereotype.Component;
 
+import java.time.ZoneId;
+
 @RequiredArgsConstructor
 @Component
 public class CpmAggregatingProcessor {
@@ -55,17 +57,38 @@ public class CpmAggregatingProcessor {
 
         @Override
         public void init(ProcessorContext context) {
-
+            this.stateStore = context.getStateStore(stateStoreName);
         }
 
         @Override
         public CpmChunk transform(String readOnlyKey, ImpressionEvent value) {
-            return null;
+            if (value == null) return null;
+
+            CpmBucket bucket = stateStore.get(readOnlyKey);
+
+            if(bucket == null) bucket = CpmBucket.empty();
+
+            Long userId = value.getUserId();
+            Long itemId = value.getItemId();
+
+            long timestamp = value.getTimestamp()
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant()
+                    .toEpochMilli();
+
+            bucket.add(value.getAmount(), timestamp);
+
+            CpmChunk chunk = null;
+            if (bucket.size() >= 1000) {
+                chunk = bucket.popThousandAndBuild(userId, itemId);
+            }
+
+            stateStore.put(readOnlyKey, bucket);
+
+            return chunk;
         }
 
         @Override
-        public void close() {
-
-        }
+        public void close() {}
     }
 }

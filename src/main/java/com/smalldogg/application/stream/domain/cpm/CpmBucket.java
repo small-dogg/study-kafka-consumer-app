@@ -30,7 +30,7 @@ public class CpmBucket {
         return pending.size();
     }
 
-    public CpmChunk popThousandAndBuild(Long userId, String itemId) {
+    public CpmChunk popThousandAndBuild(Long userId, Long itemId) {
         if (pending.size() < 1000) {
             return null;
         }

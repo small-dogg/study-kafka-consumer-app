@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 public class CpmChunk {
 
     private Long userId;
-    private String itemId;
+    private Long itemId;
 
     private long impressionCount;
     private long totalAmount;
