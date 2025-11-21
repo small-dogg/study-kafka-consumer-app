@@ -1,0 +1,98 @@
+name: register Docker Image
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  fetch-and-diff:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Git Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        if: env.changes =='true'
+        with:
+          username: ${{ vars.DOCKERHUB_ID }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build
+        run: |
+          docker build -f study-kafka-consumer-app/Dockerfile -t jerryworld/study-kafka-consumer-app-${{ github.base_ref }}:${{ github.sha }} .
+          docker push jerryworld/study-kafka-consumer-app-${{ github.base_ref }}:${{ github.sha }}
+  scan:
+    needs: fetch-and-diff
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+      - name: Run Trivy vulnerability scanner
+        run: |
+          echo "CHECK Target : study-kafka-consumer-app"
+          MODULE=study-kafka-consumer-app
+          trivy image \
+          --format table \
+          --ignore-unfixed \
+          --vuln-type  os,library \
+          --severity  CRITICAL,HIGH,MEDIUM \
+          --output study-kafka-consumer-app_trivy-results.sarif \
+          jerryworld/study-kafka-consumer-app-${{ github.base_ref }}:${{ github.sha }}
+      - name: check sarif
+        id: save_sarif
+        run: |
+          ls -al
+          MODULE=study-kafka-consumer-app
+          DATA=$(cat study-kafka-consumer-app_trivy-results.sarif)
+          echo -e "trivy-results<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$DATA" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+      - name: Add comment
+        uses: actions/github-script@v6
+        env:
+          TRIVY_RESULTS: ${{ steps.save_sarif.outputs.trivy-results }}
+        with:
+          github-token: ${{ secrets.GIT_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const pr_number = context.payload.pull_request.number;
+            
+            github.rest.issues.createComment({
+              owner: owner,
+              repo: repo,
+              issue_number: pr_number,
+              body: process.env.TRIVY_RESULTS
+            });
+  push-manifest:
+    name: Push Manifest
+    needs: fetch-and-diff
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        module: ${{ fromJSON(needs.fetch-and-diff.outputs.modified_modules) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          repository: jerry-world/k8s-manifest-test
+          ref: refs/heads/main
+          token: ${{ secrets.GIT_TOKEN }}
+      - name: Update Patch
+        run: |
+          git config --global user.email "sy920112@naver.com"
+          git config --global user.name "jerry-world"
+          
+          MODULE=study-kafka-consumer-app
+          cd apps/${MODULE}/overlay/${{ github.base_ref }}
+          after_sha="${{ github.sha }}"
+          echo "this revision : ${after_sha}"
+          sed -i "s|\(image:[[:space:]]*[^:]*:\)[^[:space:]]*$|\1${after_sha}|g" ${MODULE}-deployment-patch.yaml
+          git add -A
+          git commit -m "update manifest demo"
+          git push
