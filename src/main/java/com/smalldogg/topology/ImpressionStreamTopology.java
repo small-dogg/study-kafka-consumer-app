@@ -55,8 +55,6 @@ public class ImpressionStreamTopology {
                 .groupByKey(Grouped.with(Serdes.String(), impressionAggResultSerde))
                 .windowedBy(windows)
                 .reduce(
-                        // agg: 지금까지 누적된 값
-                        // curr: 새로 들어온 값
                         (agg, curr) -> new ImpressionAggResult(
                                 curr.getUserId(),
                                 agg.getTotalAmount() + curr.getTotalAmount(),

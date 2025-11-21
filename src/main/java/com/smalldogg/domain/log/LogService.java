@@ -13,10 +13,16 @@ public class LogService {
 
     @Transactional
     public void saveLog(ImpressionAggResult agg) {
-        ImpressionLog impressionLog = new ImpressionLog();
-        impressionLog.setUserId(agg.getUserId());
-        impressionLog.setStartTimestamp(agg.getStartTimestamp());
-        impressionLog.setEndTimestamp(agg.getEndTimestamp());
+
+        ImpressionLog impressionLog = logRepository.findByUserIdAndStartTimestampAndEndTimestamp(agg.getUserId(), agg.getStartTimestamp(), agg.getEndTimestamp())
+                .orElseGet(() -> {
+                    ImpressionLog newImpressionLog = new ImpressionLog();
+                    newImpressionLog.setUserId(agg.getUserId());
+                    newImpressionLog.setStartTimestamp(agg.getStartTimestamp());
+                    newImpressionLog.setEndTimestamp(agg.getEndTimestamp());
+                    return newImpressionLog;
+                });
+
         impressionLog.setTotalAmount(agg.getTotalAmount());
         logRepository.save(impressionLog);
     }
