@@ -2,12 +2,12 @@ spring:
   application:
     name: study-kafka-consumer-app
   datasource:
-    url: jdbc:postgresql://localhost:5432/ad
+    url: jdbc:postgresql://jerry.world:32222/ad
     username: test
     password: test
     driver-class-name: org.postgresql.Driver
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:30092
     streams:
       application-id: impression-agg
       client-id: impression-agg-client
