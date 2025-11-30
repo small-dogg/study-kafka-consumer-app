@@ -1,8 +1,8 @@
 package com.smalldogg.infrastructure.service;
 
-import com.smalldogg.application.stream.domain.impression.ImpressionEvent;
 import com.smalldogg.infrastructure.entity.ImpressionRawLog;
 import com.smalldogg.infrastructure.repository.ImpressionRawLogRepository;
+import com.smalldogg.kafka.model.ImpressionEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

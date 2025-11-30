@@ -9,13 +9,8 @@ spring:
   kafka:
     bootstrap-servers: localhost:30092
     consumer:
-      group-id: impression-group
-      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       enable-auto-commit: false
       isolation-level: read_committed
-    listener:
-      ack-mode: manual
   jpa:
     hibernate:
       ddl-auto: update
