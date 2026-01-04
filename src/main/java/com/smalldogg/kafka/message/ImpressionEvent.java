@@ -1,4 +1,4 @@
-package com.smalldogg.kafka.model;
+package com.smalldogg.kafka.message;
 
 import lombok.Getter;
 import java.time.LocalDateTime;

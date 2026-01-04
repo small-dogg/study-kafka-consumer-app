@@ -1,6 +1,6 @@
-package com.smalldogg.infrastructure.entity;
+package com.smalldogg.infrastructure.aggregate;
 
-import com.smalldogg.kafka.model.ImpressionEvent;
+import com.smalldogg.kafka.message.ImpressionEvent;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
